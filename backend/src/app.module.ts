@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigType } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -13,22 +14,20 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UploadModule } from './uploads/upload.module';
 import { WsModule } from './ws/ws.module';
-import { TierConfigModule } from './tier-config/tier-config.module';
-import { VirtualAccountModule } from './virtual-account/virtual-account.module';
-import { RatesModule } from './rates/rates.module';
-import { SorobanModule } from './soroban/soroban.module';
-import { DepositsModule } from './deposits/deposits.module';
-import { TransactionsModule } from './transactions/transactions.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { LoggingModule } from './logging/logging.module';
+import { CorrelationIdMiddleware } from './logging/correlation-id.middleware';
+import { HttpLoggingInterceptor } from './logging/http-logging.interceptor';
 
 @Module({
   imports: [
     // 1. Config — global, validates all env vars at startup with abortEarly: false.
     AppConfigModule,
 
-    // 2. Redis cache — global CacheService + ioredis client.
-    CacheModule,
+    // 1b. Logging — Winston + Nest bridge.
+    LoggingModule,
 
-    // 3. Database — owns the TypeORM root connection; see database.module.ts.
+    // 2. Database — owns the TypeORM root connection; see database.module.ts.
     DatabaseModule,
 
     // 4. Bull — async Redis connection via typed RedisConfig.
@@ -96,6 +95,15 @@ import { TransactionsModule } from './transactions/transactions.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
+

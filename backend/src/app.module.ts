@@ -31,6 +31,7 @@ import { VirtualAccountModule } from './virtual-account/virtual-account.module';
 import { AdminModule } from './admin/admin.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { SmsModule } from './sms/sms.module';
+import { SecurityModule } from './security/security.module';
 import { TransactionModule } from './transactions/transactions.module';
 import { PushModule } from './push/push.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
@@ -104,6 +105,7 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 
     MerchantsModule,
     UsersModule,
+    SecurityModule,
     BankAccountsModule,
     VirtualAccountModule,
     PayLinkModule,

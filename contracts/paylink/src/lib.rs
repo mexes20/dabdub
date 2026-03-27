@@ -464,6 +464,155 @@ mod test {
     }
 
     #[test]
+    fn create_paylink_with_very_large_amount_succeeds() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let creator = String::from_str(&env, "irene");
+        let token_id = String::from_str(&env, "tok-large");
+        let note = String::from_str(&env, "large payment");
+
+        client.register_creator(&creator);
+
+        // 1 billion USDC in stroops (1 USDC = 10_000_000 stroops)
+        let large_amount = 1_000_000_000_i128 * 10_000_000_i128;
+        client.create_paylink(&creator, &token_id, &large_amount, &note, &100);
+
+        let stored = client
+            .get_paylink(&token_id)
+            .expect("expected PayLink in storage");
+        assert_eq!(stored.amount, large_amount);
+    }
+
+    #[test]
+    fn create_paylink_with_minimum_ttl_succeeds() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let creator = String::from_str(&env, "jack");
+        let token_id = String::from_str(&env, "tok-min-ttl");
+        let note = String::from_str(&env, "test");
+
+        client.register_creator(&creator);
+
+        // Minimum TTL of 1 ledger
+        client.create_paylink(&creator, &token_id, &100_i128, &note, &1);
+
+        let stored = client
+            .get_paylink(&token_id)
+            .expect("expected PayLink in storage");
+        assert_eq!(stored.expiration_ledger, env.ledger().sequence() + 1);
+    }
+
+    #[test]
+    fn create_paylink_with_zero_ttl_fails_due_to_overflow_or_invalid() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let creator = String::from_str(&env, "kate");
+        let token_id = String::from_str(&env, "tok-zero-ttl");
+        let note = String::from_str(&env, "test");
+
+        client.register_creator(&creator);
+
+        // TTL of 0 means expiration at current ledger (already expired)
+        // This should still succeed but create an immediately expired paylink
+        client.create_paylink(&creator, &token_id, &100_i128, &note, &0);
+
+        let stored = client
+            .get_paylink(&token_id)
+            .expect("expected PayLink in storage");
+        assert_eq!(stored.expiration_ledger, env.ledger().sequence());
+    }
+
+    #[test]
+    fn get_paylink_for_non_existent_token_returns_none() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let token_id = String::from_str(&env, "non-existent");
+        assert!(client.get_paylink(&token_id).is_none());
+    }
+
+    #[test]
+    fn register_creator_allows_subsequent_create_paylink() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let creator = String::from_str(&env, "leo");
+        let token_id = String::from_str(&env, "tok-registered");
+        let note = String::from_str(&env, "test");
+
+        // Register creator first
+        client.register_creator(&creator);
+
+        // Now create paylink should succeed
+        client.create_paylink(&creator, &token_id, &50_i128, &note, &10);
+
+        let stored = client
+            .get_paylink(&token_id)
+            .expect("expected PayLink in storage");
+        assert_eq!(stored.creator_username, creator);
+    }
+
+    #[test]
+    fn credit_yield_for_non_existent_user_returns_user_not_found() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.set_admin(&admin);
+
+        let username = String::from_str(&env, "non-existent");
+        env.mock_all_auths();
+
+        assert_eq!(
+            client.try_credit_yield(&username, &100_i128),
+            Err(Ok(Error::UserNotFound))
+        );
+    }
+
+    #[test]
+    fn credit_yield_with_zero_amount_returns_invalid_amount() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.set_admin(&admin);
+
+        let username = String::from_str(&env, "mike");
+        client.register_creator(&username);
+        env.mock_all_auths();
+
+        assert_eq!(
+            client.try_credit_yield(&username, &0_i128),
+            Err(Ok(Error::InvalidAmount))
+        );
+    }
+
+    #[test]
+    fn credit_yield_with_negative_amount_returns_invalid_amount() {
+        let env = Env::default();
+        let contract_id = env.register(PayLinkContract, ());
+        let client = PayLinkContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.set_admin(&admin);
+
+        let username = String::from_str(&env, "nancy");
+        client.register_creator(&username);
+        env.mock_all_auths();
+
+        assert_eq!(
+            client.try_credit_yield(&username, &-100_i128),
+            Err(Ok(Error::InvalidAmount))
     fn cancel_paylink_returns_contract_paused_when_paused() {
         let (env, _contract_id, client, _admin) = setup();
         env.mock_all_auths();

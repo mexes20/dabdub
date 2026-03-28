@@ -21,6 +21,8 @@ export const WS_EVENTS = {
   NOTIFICATION_NEW: 'notification_new',
   RANK_CHANGED: 'rank_changed',
   SYSTEM_MESSAGE: 'system_message',
+  SYSTEM_MAINTENANCE_START: 'system_maintenance_start',
+  SYSTEM_MAINTENANCE_END: 'system_maintenance_end',
   SYSTEM_ANNOUNCEMENT: 'system_announcement',
 } as const;
 

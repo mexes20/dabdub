@@ -85,6 +85,7 @@ import { BulkPaymentModule } from './bulk-payments/bulk-payment.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { GeoModule } from './geo/geo.module';
 import { GeoBlockMiddleware } from './geo/geo-block.middleware';
+import { ReceiptModule } from './receipt/receipt.module';
 
 @Module({
   imports: [
@@ -252,6 +253,8 @@ import { GeoBlockMiddleware } from './geo/geo-block.middleware';
     FeatureFlagModule,
     GeoModule,
 
+    // Receipts — on-demand PDF receipt generation + R2 storage + email delivery.
+    ReceiptModule,
     PayoutsModule,
 
     // Global search — users, transactions, paylinks.
